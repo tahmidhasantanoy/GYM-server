@@ -2,6 +2,7 @@ const express = require("express");
 const app = express();
 const cors = require("cors");
 require("dotenv").config();
+const bcrypt = require("bcrypt");
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const port = process.env.PORT || process.env.SERVER_PORT;
 
@@ -23,6 +24,39 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
+
+    const db = client.db("authentication");
+    const collection = db.collection("trainers");
+
+    // User Registration
+    app.post("/register-trainer", async (req, res) => {
+      const { fullname, email, password } = req.body;
+
+      // Check if email already exists
+      const existingUser = await collection.findOne({ email });
+      if (existingUser) {
+        return res.status(400).json({
+          success: false,
+          message: "User already exist!!!",
+        });
+      }
+
+      // Hash the password
+      const hashedPassword = await bcrypt.hash(password, 10);
+
+      // Insert user into the database
+      await collection.insertOne({
+        fullname,
+        email,
+        password: hashedPassword,
+        role: "user",
+      });
+
+      res.status(201).json({
+        success: true,
+        message: "User registered successfully!",
+      });
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
