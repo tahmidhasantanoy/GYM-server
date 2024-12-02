@@ -25,15 +25,16 @@ async function run() {
     // Connect the client to the server	(optional starting in v4.7)
     await client.connect();
 
-    const db = client.db("authentication");
-    const collection = db.collection("trainers");
+    const db = client.db("Gym-Management");
+    const usersCollection = db.collection("usersAuthInfo");
 
     // User Registration
     app.post("/register-trainer", async (req, res) => {
-      const { fullname, email, password } = req.body;
+      console.log(req.body);
+      const { fullname, email, password, role } = req.body;
 
       // Check if email already exists
-      const existingUser = await collection.findOne({ email });
+      const existingUser = await usersCollection.findOne({ email });
       if (existingUser) {
         return res.status(400).json({
           success: false,
@@ -45,11 +46,11 @@ async function run() {
       const hashedPassword = await bcrypt.hash(password, 10);
 
       // Insert user into the database
-      await collection.insertOne({
+      await usersCollection.insertOne({
         fullname,
         email,
         password: hashedPassword,
-        role: "user",
+        role,
       });
 
       res.status(201).json({
@@ -57,6 +58,45 @@ async function run() {
         message: "User registered successfully!",
       });
     });
+
+    // User Login
+    app.post("/login-user", async (req, res) => {
+      const userInfo = req.body;
+      // console.log("userInfo :", userInfo);
+
+      const { email, password } = req.body;
+      // console.log(email, password);
+
+      // Find user by email
+      const user = await usersCollection.findOne({ email });
+      if (!user) {
+        // console.log("user fount or not", user);
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Compare hashed password
+      const isPasswordValid = await bcrypt.compare(password, user.password);
+      // console.log("isPasswordValid matched :", isPasswordValid);
+      if (!isPasswordValid) {
+        return res.status(401).json({ message: "Invalid email or password" });
+      }
+
+      // Generate JWT token
+      // const token = jwt.sign(
+      //   { email: user.email, role: user.role },
+      //   process.env.JWT_SECRET,
+      //   {
+      //     expiresIn: process.env.EXPIRES_IN,
+      //   }
+      // );
+
+      res.json({
+        success: true,
+        message: "User successfully logged in!",
+        // accessToken: token,
+      });
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
